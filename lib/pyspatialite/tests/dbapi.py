@@ -21,9 +21,11 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
-import unittest
+import six
 import sys
 import threading
+import unittest
+
 import pyspatialite.dbapi2 as sqlite
 
 class ModuleTests(unittest.TestCase):
@@ -41,12 +43,12 @@ class ModuleTests(unittest.TestCase):
                          sqlite.paramstyle)
 
     def CheckWarning(self):
-        self.assert_(issubclass(sqlite.Warning, StandardError),
-                     "Warning is not a subclass of StandardError")
+        self.assert_(issubclass(sqlite.Warning, Exception),
+                     "Warning is not a subclass of Exception")
 
     def CheckError(self):
-        self.assertTrue(issubclass(sqlite.Error, StandardError),
-                        "Error is not a subclass of StandardError")
+        self.assertTrue(issubclass(sqlite.Error, Exception),
+                        "Error is not a subclass of Exception")
 
     def CheckInterfaceError(self):
         self.assertTrue(issubclass(sqlite.InterfaceError, sqlite.Error),
@@ -369,8 +371,8 @@ class CursorTests(unittest.TestCase):
             self.fail("should have raised a TypeError")
         except TypeError:
             return
-        except Exception, e:
-            print "raised", e.__class__
+        except Exception as e:
+            six.print_("raised", e.__class__)
             self.fail("raised wrong exception.")
 
     def CheckFetchIter(self):
@@ -642,7 +644,7 @@ class ConstructorTests(unittest.TestCase):
         ts = sqlite.TimestampFromTicks(42)
 
     def CheckBinary(self):
-        b = sqlite.Binary(chr(0) + "'")
+        b = sqlite.Binary(six.int2byte(0) + b"'")
 
 class ExtensionTests(unittest.TestCase):
     def CheckScriptStringSql(self):

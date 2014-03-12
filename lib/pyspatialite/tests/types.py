@@ -22,9 +22,14 @@
 # 3. This notice may not be removed or altered from any source distribution.
 
 import datetime
+import six
 import unittest
-import pyspatialite.dbapi2 as sqlite
 import zlib
+
+import pyspatialite.dbapi2 as sqlite
+
+if six.PY3:
+    buffer  = memoryview
 
 
 class SqliteTypeTests(unittest.TestCase):
@@ -64,11 +69,25 @@ class SqliteTypeTests(unittest.TestCase):
         self.assertEqual(row[0], val)
 
     def CheckBlob(self):
-        val = buffer("Guglhupf")
+        val = buffer(b"Guglhupf")
         self.cur.execute("insert into test(b) values (?)", (val,))
         self.cur.execute("select b from test")
         row = self.cur.fetchone()
-        self.assertEqual(row[0], val)
+        #FIXME: I think the C code is allocating more memory than needed and including random bytes at the end.
+        if six.PY3:
+            self.assertEqual(row[0].tobytes(), val.tobytes())
+        else:
+            self.assertEqual(row[0], val)
+
+    def CheckBlobMoreData(self):
+        val = buffer(b"foobarbazGuglhupf")
+        self.cur.execute("insert into test(b) values (?)", (val,))
+        self.cur.execute("select b from test")
+        row = self.cur.fetchone()
+        if six.PY3:
+            self.assertEqual(row[0].tobytes(), val.tobytes())
+        else:
+            self.assertEqual(row[0], val)
 
     def CheckUnicodeExecute(self):
         self.cur.execute(u"select 'Österreich'")
@@ -114,6 +133,14 @@ class DeclTypesTests(unittest.TestCase):
                 return 0
             else:
                 return 1
+
+#        def __lt__(self, other):
+#            if not isinstance(other, DeclTypesTests.Foo):
+#                raise ValueError
+#            if self.val == other.val:
+#                return False
+#            else:
+#                return True
 
         def __conform__(self, protocol):
             if protocol is sqlite.PrepareProtocol:
@@ -228,11 +255,25 @@ class DeclTypesTests(unittest.TestCase):
 
     def CheckBlob(self):
         # default
-        val = buffer("Guglhupf")
+        val = buffer(b"Guglhupf")
         self.cur.execute("insert into test(bin) values (?)", (val,))
         self.cur.execute("select bin from test")
         row = self.cur.fetchone()
-        self.assertEqual(row[0], val)
+        if six.PY3:
+            self.assertEqual(row[0].tobytes(), val.tobytes())
+        else:
+            self.assertEqual(row[0], val)
+
+    def CheckBlob(self):
+        # default
+        val = buffer(b"foobarbazGuglhupf")
+        self.cur.execute("insert into test(bin) values (?)", (val,))
+        self.cur.execute("select bin from test")
+        row = self.cur.fetchone()
+        if six.PY3:
+            self.assertEqual(row[0].tobytes(), val.tobytes())
+        else:
+            self.assertEqual(row[0], val)
 
     def CheckNumber1(self):
         self.cur.execute("insert into test(n1) values (5)")
@@ -303,7 +344,7 @@ class ColNamesTests(unittest.TestCase):
         no row returned.
         """
         self.cur.execute("select * from test where 0 = 1")
-        self.assert_(self.cur.description[0][0] == "x")
+        self.assertTrue(self.cur.description[0][0] == "x")
 
 class ObjectAdaptationTests(unittest.TestCase):
     def cast(obj):

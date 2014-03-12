@@ -28,6 +28,7 @@
 #include "prepare_protocol.h"
 #include "microprotocols.h"
 #include "row.h"
+#include "sqlitecompat.h"
 
 #if SQLITE_VERSION_NUMBER >= 3003003
 #define HAVE_SHARED_CACHE
@@ -155,8 +156,13 @@ static PyObject* module_register_adapter(PyObject* self, PyObject* args)
 
     /* a basic type is adapted; there's a performance optimization if that's not the case
      * (99 % of all usages) */
+    #if PY_MAJOR_VERSION >= 3
+    if (type == &PyLong_Type || type == &PyFloat_Type || type == &PyUnicode_Type
+            || type == &PyBytes_Type) {
+    #else
     if (type == &PyInt_Type || type == &PyLong_Type || type == &PyFloat_Type
             || type == &PyString_Type || type == &PyUnicode_Type || type == &PyBuffer_Type) {
+    #endif
         pysqlite_BaseTypeAdapted = 1;
     }
 
@@ -300,13 +306,31 @@ static IntConstantPair _int_constants[] = {
     {(char*)NULL, 0}
 };
 
-PyMODINIT_FUNC init_spatialite(void)
+// from http://python3porting.com/cextensions.html
+#if PY_MAJOR_VERSION >= 3
+  #define PyExc_StandardError PyExc_Exception
+  #define MOD_ERROR_VAL NULL
+  #define MOD_SUCCESS_VAL(val) val
+  #define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
+  #define MOD_DEF(ob, name, doc, methods) \
+          static struct PyModuleDef moduledef = { \
+            PyModuleDef_HEAD_INIT, name, doc, -1, methods, }; \
+          ob = PyModule_Create(&moduledef);
+#else
+  #define MOD_ERROR_VAL
+  #define MOD_SUCCESS_VAL(val)
+  #define MOD_INIT(name) void init##name(void)
+  #define MOD_DEF(ob, name, doc, methods) \
+          ob = Py_InitModule3(name, methods, doc);
+#endif
+
+MOD_INIT(_spatialite)
 {
     PyObject *module, *dict;
     PyObject *tmp_obj;
     int i;
 
-    module = Py_InitModule("pyspatialite._spatialite", module_methods);
+    MOD_DEF(module, "pyspatialite._spatialite", NULL, module_methods);
 
     if (!module ||
         (pysqlite_row_setup_types() < 0) ||
@@ -316,7 +340,7 @@ PyMODINIT_FUNC init_spatialite(void)
         (pysqlite_statement_setup_types() < 0) ||
         (pysqlite_prepare_protocol_setup_types() < 0)
        ) {
-        return;
+        return MOD_ERROR_VAL;
     }
 
     Py_INCREF(&pysqlite_ConnectionType);
@@ -410,13 +434,13 @@ PyMODINIT_FUNC init_spatialite(void)
         Py_DECREF(tmp_obj);
     }
 
-    if (!(tmp_obj = PyString_FromString(PYSPATIALITE_VERSION))) {
+    if (!(tmp_obj = PyUnicode_FromString(PYSPATIALITE_VERSION))) {
         goto error;
     }
     PyDict_SetItemString(dict, "version", tmp_obj);
     Py_DECREF(tmp_obj);
 
-    if (!(tmp_obj = PyString_FromString(sqlite3_libversion()))) {
+    if (!(tmp_obj = PyUnicode_FromString(sqlite3_libversion()))) {
         goto error;
     }
     PyDict_SetItemString(dict, "sqlite_version", tmp_obj);
@@ -449,9 +473,13 @@ PyMODINIT_FUNC init_spatialite(void)
     PyEval_InitThreads();
 #endif
 
+    return MOD_SUCCESS_VAL(module);
+
 error:
     if (PyErr_Occurred())
     {
         PyErr_SetString(PyExc_ImportError, "pyspatialite._spatialite: init failed");
     }
+    
+    return MOD_ERROR_VAL;
 }

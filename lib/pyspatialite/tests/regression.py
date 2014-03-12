@@ -22,7 +22,10 @@
 # 3. This notice may not be removed or altered from any source distribution.
 
 import datetime
+import six
+from six.moves import range
 import unittest
+
 import pyspatialite.dbapi2 as sqlite
 
 class RegressionTests(unittest.TestCase):
@@ -52,10 +55,10 @@ class RegressionTests(unittest.TestCase):
         # reset before a rollback, but only those that are still in the
         # statement cache. The others are not accessible from the connection object.
         con = sqlite.connect(":memory:", cached_statements=5)
-        cursors = [con.cursor() for x in xrange(5)]
+        cursors = [con.cursor() for x in range(5)]
         cursors[0].execute("create table test(x)")
         for i in range(10):
-            cursors[0].executemany("insert into test(x) values (?)", [(x,) for x in xrange(10)])
+            cursors[0].executemany("insert into test(x) values (?)", [(x,) for x in range(10)])
 
         for i in range(5):
             cursors[i].execute(" " * i + "select x from test")
@@ -149,6 +152,7 @@ class RegressionTests(unittest.TestCase):
         """
         self.assertRaises(TypeError, sqlite.register_adapter, {}, None)
 
+    @unittest.skipIf(six.PY3, 'Everything is unicode in Python 3')
     def CheckSetIsolationLevel(self):
         """
         See issue 3312.

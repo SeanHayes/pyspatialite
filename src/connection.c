@@ -290,7 +290,7 @@ void pysqlite_connection_dealloc(pysqlite_Connection* self)
     Py_XDECREF(self->statements);
     Py_XDECREF(self->cursors);
 
-    self->ob_type->tp_free((PyObject*)self);
+    Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 /*
@@ -554,12 +554,21 @@ void _pysqlite_set_result(sqlite3_context* context, PyObject* py_val)
         sqlite3_result_int64(context, (PY_LONG_LONG)longval);
     } else if (PyFloat_Check(py_val)) {
         sqlite3_result_double(context, PyFloat_AsDouble(py_val));
+    #if PY_MAJOR_VERSION >= 3
+    } else if (PyObject_CheckBuffer(py_val)) {
+        if (PyObject_AsCharBuffer(py_val, &buffer, &buflen) != 0) {
+            PyErr_SetString(PyExc_ValueError, "could not convert BLOB to buffer");
+        } else {
+            sqlite3_result_blob(context, buffer, buflen, SQLITE_TRANSIENT);
+        }
+    #else
     } else if (PyBuffer_Check(py_val)) {
         if (PyObject_AsCharBuffer(py_val, &buffer, &buflen) != 0) {
             PyErr_SetString(PyExc_ValueError, "could not convert BLOB to buffer");
         } else {
             sqlite3_result_blob(context, buffer, buflen, SQLITE_TRANSIENT);
         }
+    #endif
     } else if (PyString_Check(py_val)) {
         sqlite3_result_text(context, PyString_AsString(py_val), -1, SQLITE_TRANSIENT);
     } else if (PyUnicode_Check(py_val)) {
@@ -611,6 +620,24 @@ PyObject* _pysqlite_build_py_params(sqlite3_context *context, int argc, sqlite3_
                 break;
             case SQLITE_BLOB:
                 buflen = sqlite3_value_bytes(cur_value);
+                #if PY_MAJOR_VERSION >= 3
+                
+/*                Py_buffer *view = (Py_buffer *) malloc(sizeof(*view));*/
+/*                int error = PyObject_GetBuffer(cur_py_value, view, PyBUF_WRITABLE);*/
+/*                if (error || !cur_py_value) {*/
+/*                    Py_DECREF(cur_py_value);*/
+/*                    cur_py_value = NULL;*/
+/*                    break;*/
+/*                }*/
+/*                raw_buffer = view->buf;*/
+/*                buflen = view->len;*/
+                raw_buffer = (char*) malloc(buflen);
+                
+                memcpy(raw_buffer, sqlite3_value_blob(cur_value), buflen);
+                
+                cur_py_value = PyBytes_FromString(raw_buffer);
+                cur_py_value = PyMemoryView_FromObject(cur_py_value);
+                #else
                 cur_py_value = PyBuffer_New(buflen);
                 if (!cur_py_value) {
                     break;
@@ -621,6 +648,7 @@ PyObject* _pysqlite_build_py_params(sqlite3_context *context, int argc, sqlite3_
                     break;
                 }
                 memcpy(raw_buffer, sqlite3_value_blob(cur_value), buflen);
+                #endif
                 break;
             case SQLITE_NULL:
             default:
@@ -1597,16 +1625,16 @@ static PyMethodDef connection_methods[] = {
 
 static struct PyMemberDef connection_members[] =
 {
-    {"Warning", T_OBJECT, offsetof(pysqlite_Connection, Warning), RO},
-    {"Error", T_OBJECT, offsetof(pysqlite_Connection, Error), RO},
-    {"InterfaceError", T_OBJECT, offsetof(pysqlite_Connection, InterfaceError), RO},
-    {"DatabaseError", T_OBJECT, offsetof(pysqlite_Connection, DatabaseError), RO},
-    {"DataError", T_OBJECT, offsetof(pysqlite_Connection, DataError), RO},
-    {"OperationalError", T_OBJECT, offsetof(pysqlite_Connection, OperationalError), RO},
-    {"IntegrityError", T_OBJECT, offsetof(pysqlite_Connection, IntegrityError), RO},
-    {"InternalError", T_OBJECT, offsetof(pysqlite_Connection, InternalError), RO},
-    {"ProgrammingError", T_OBJECT, offsetof(pysqlite_Connection, ProgrammingError), RO},
-    {"NotSupportedError", T_OBJECT, offsetof(pysqlite_Connection, NotSupportedError), RO},
+    {"Warning", T_OBJECT, offsetof(pysqlite_Connection, Warning), READONLY},
+    {"Error", T_OBJECT, offsetof(pysqlite_Connection, Error), READONLY},
+    {"InterfaceError", T_OBJECT, offsetof(pysqlite_Connection, InterfaceError), READONLY},
+    {"DatabaseError", T_OBJECT, offsetof(pysqlite_Connection, DatabaseError), READONLY},
+    {"DataError", T_OBJECT, offsetof(pysqlite_Connection, DataError), READONLY},
+    {"OperationalError", T_OBJECT, offsetof(pysqlite_Connection, OperationalError), READONLY},
+    {"IntegrityError", T_OBJECT, offsetof(pysqlite_Connection, IntegrityError), READONLY},
+    {"InternalError", T_OBJECT, offsetof(pysqlite_Connection, InternalError), READONLY},
+    {"ProgrammingError", T_OBJECT, offsetof(pysqlite_Connection, ProgrammingError), READONLY},
+    {"NotSupportedError", T_OBJECT, offsetof(pysqlite_Connection, NotSupportedError), READONLY},
     {"row_factory", T_OBJECT, offsetof(pysqlite_Connection, row_factory)},
     {"text_factory", T_OBJECT, offsetof(pysqlite_Connection, text_factory)},
     {NULL}

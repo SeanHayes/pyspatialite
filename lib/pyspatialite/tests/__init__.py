@@ -22,15 +22,27 @@
 # 3. This notice may not be removed or altered from any source distribution.
 
 import os, sys
+import six
 import unittest
 
-import dbapi, types, userfunctions, factory, transactions, hooks, regression, dump
-from pyspatialite import dbapi2 as sqlite
+try:
+    from pyspatialite import dbapi2 as sqlite
+except Exception as e:
+    six.print_(e)
+    raise
+
+from . import dbapi, types, userfunctions, factory, transactions, hooks, regression, dump
 
 def suite():
-    tests = [dbapi.suite(), types.suite(), userfunctions.suite(),
-      factory.suite(), transactions.suite(), hooks.suite(), regression.suite(), dump.suite()]
-
+    mods = [dbapi, types, userfunctions, factory, transactions, hooks, regression, dump,]
+    
+#    loader = unittest.TestLoader()
+#    loader.testMethodPrefix='Check'
+#    
+#    tests = [loader.loadTestsFromModule(mod) for mod in mods]
+    
+    tests = [mod.suite() for mod in mods]
+    
     return unittest.TestSuite(tuple(tests))
 
 def test():

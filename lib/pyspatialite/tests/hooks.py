@@ -24,6 +24,9 @@
 import os, unittest
 import pyspatialite.dbapi2 as sqlite
 
+def cmp(a, b):
+    return (a > b) - (a < b)
+
 class CollationTests(unittest.TestCase):
     def setUp(self):
         pass
@@ -36,7 +39,7 @@ class CollationTests(unittest.TestCase):
         try:
             con.create_collation("X", 42)
             self.fail("should have raised a TypeError")
-        except TypeError, e:
+        except TypeError as e:
             self.assertEqual(e.args[0], "parameter must be callable")
 
     def CheckCreateCollationNotAscii(self):
@@ -44,7 +47,7 @@ class CollationTests(unittest.TestCase):
         try:
             con.create_collation("collä", cmp)
             self.fail("should have raised a ProgrammingError")
-        except sqlite.ProgrammingError, e:
+        except sqlite.ProgrammingError as e:
             pass
 
     def CheckCollationIsUsed(self):
@@ -73,7 +76,7 @@ class CollationTests(unittest.TestCase):
         try:
             result = con.execute(sql).fetchall()
             self.fail("should have raised an OperationalError")
-        except sqlite.OperationalError, e:
+        except sqlite.OperationalError as e:
             self.assertEqual(e.args[0].lower(), "no such collation sequence: mycoll")
 
     def CheckCollationRegisterTwice(self):
@@ -101,7 +104,7 @@ class CollationTests(unittest.TestCase):
         try:
             con.execute("select 'a' as x union select 'b' as x order by x collate mycoll")
             self.fail("should have raised an OperationalError")
-        except sqlite.OperationalError, e:
+        except sqlite.OperationalError as e:
             if not e.args[0].startswith("no such collation sequence"):
                 self.fail("wrong OperationalError raised")
 

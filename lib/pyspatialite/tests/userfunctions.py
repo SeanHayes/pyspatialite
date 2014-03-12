@@ -22,8 +22,14 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
+import six
 import unittest
+
 import pyspatialite.dbapi2 as sqlite
+
+if six.PY3:
+    unicode = str
+    buffer  = memoryview
 
 def func_returntext():
     return "foo"
@@ -36,7 +42,7 @@ def func_returnfloat():
 def func_returnnull():
     return None
 def func_returnblob():
-    return buffer("blob")
+    return buffer(b"blob")
 def func_raiseexception():
     5 // 0
 
@@ -197,7 +203,10 @@ class FunctionTests(unittest.TestCase):
         cur.execute("select returnblob()")
         val = cur.fetchone()[0]
         self.assertEqual(type(val), buffer)
-        self.assertEqual(val, buffer("blob"))
+        if six.PY3:
+            self.assertEqual(val.tobytes(), buffer(b"blob").tobytes())
+        else:
+            self.assertEqual(val, buffer(b"blob"))
 
     def CheckFuncException(self):
         cur = self.con.cursor()
@@ -205,7 +214,7 @@ class FunctionTests(unittest.TestCase):
             cur.execute("select raiseexception()")
             cur.fetchone()
             self.fail("should have raised OperationalError")
-        except sqlite.OperationalError, e:
+        except sqlite.OperationalError as e:
             self.assertEqual(e.args[0], 'user-defined function raised exception')
 
     def CheckParamString(self):
@@ -234,7 +243,7 @@ class FunctionTests(unittest.TestCase):
 
     def CheckParamBlob(self):
         cur = self.con.cursor()
-        cur.execute("select isblob(?)", (buffer("blob"),))
+        cur.execute("select isblob(?)", (buffer(b"blob"),))
         val = cur.fetchone()[0]
         self.assertEqual(val, 1)
 
@@ -252,7 +261,7 @@ class AggregateTests(unittest.TestCase):
                 )
             """)
         cur.execute("insert into test(t, i, f, n, b) values (?, ?, ?, ?, ?)",
-            ("foo", 5, 3.14, None, buffer("blob"),))
+            ("foo", 5, 3.14, None, buffer(b"blob"),))
 
         self.con.create_aggregate("nostep", 1, AggrNoStep)
         self.con.create_aggregate("nofinalize", 1, AggrNoFinalize)
@@ -279,8 +288,11 @@ class AggregateTests(unittest.TestCase):
         try:
             cur.execute("select nostep(t) from test")
             self.fail("should have raised an AttributeError")
-        except AttributeError, e:
-            self.assertEqual(e.args[0], "AggrNoStep instance has no attribute 'step'")
+        except AttributeError as e:
+            if six.PY3:
+                self.assertEqual(e.args[0], "'AggrNoStep' object has no attribute 'step'")
+            else:
+                self.assertEqual(e.args[0], "AggrNoStep instance has no attribute 'step'")
 
     def CheckAggrNoFinalize(self):
         cur = self.con.cursor()
@@ -288,7 +300,7 @@ class AggregateTests(unittest.TestCase):
             cur.execute("select nofinalize(t) from test")
             val = cur.fetchone()[0]
             self.fail("should have raised an OperationalError")
-        except sqlite.OperationalError, e:
+        except sqlite.OperationalError as e:
             self.assertEqual(e.args[0], "user-defined aggregate's 'finalize' method raised error")
 
     def CheckAggrExceptionInInit(self):
@@ -297,7 +309,7 @@ class AggregateTests(unittest.TestCase):
             cur.execute("select excInit(t) from test")
             val = cur.fetchone()[0]
             self.fail("should have raised an OperationalError")
-        except sqlite.OperationalError, e:
+        except sqlite.OperationalError as e:
             self.assertEqual(e.args[0], "user-defined aggregate's '__init__' method raised error")
 
     def CheckAggrExceptionInStep(self):
@@ -306,7 +318,7 @@ class AggregateTests(unittest.TestCase):
             cur.execute("select excStep(t) from test")
             val = cur.fetchone()[0]
             self.fail("should have raised an OperationalError")
-        except sqlite.OperationalError, e:
+        except sqlite.OperationalError as e:
             self.assertEqual(e.args[0], "user-defined aggregate's 'step' method raised error")
 
     def CheckAggrExceptionInFinalize(self):
@@ -315,7 +327,7 @@ class AggregateTests(unittest.TestCase):
             cur.execute("select excFinalize(t) from test")
             val = cur.fetchone()[0]
             self.fail("should have raised an OperationalError")
-        except sqlite.OperationalError, e:
+        except sqlite.OperationalError as e:
             self.assertEqual(e.args[0], "user-defined aggregate's 'finalize' method raised error")
 
     def CheckAggrCheckParamStr(self):
@@ -344,7 +356,7 @@ class AggregateTests(unittest.TestCase):
 
     def CheckAggrCheckParamBlob(self):
         cur = self.con.cursor()
-        cur.execute("select checkType('blob', ?)", (buffer("blob"),))
+        cur.execute("select checkType('blob', ?)", (buffer(b"blob"),))
         val = cur.fetchone()[0]
         self.assertEqual(val, 1)
 
@@ -384,7 +396,7 @@ class AuthorizerTests(unittest.TestCase):
     def CheckTableAccess(self):
         try:
             self.con.execute("select * from t2")
-        except sqlite.DatabaseError, e:
+        except sqlite.DatabaseError as e:
             if not e.args[0].endswith("prohibited"):
                 self.fail("wrong exception text: %s" % e.args[0])
             return
@@ -393,7 +405,7 @@ class AuthorizerTests(unittest.TestCase):
     def CheckColumnAccess(self):
         try:
             self.con.execute("select c2 from t1")
-        except sqlite.DatabaseError, e:
+        except sqlite.DatabaseError as e:
             if not e.args[0].endswith("prohibited"):
                 self.fail("wrong exception text: %s" % e.args[0])
             return

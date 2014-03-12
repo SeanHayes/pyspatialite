@@ -9,6 +9,15 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
+   
+   sqlite3
+
+.. glossary::
+   
+   generator
+   iterator
+   new-style class
+      Standard Python terminology.
 
 Indices and tables
 ==================

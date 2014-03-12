@@ -6,6 +6,7 @@
 # reinvent the wheel using NSIS.
 
 import os
+import six
 import sys
 import urllib
 import zipfile
@@ -31,7 +32,7 @@ SRC = "src/module.c src/connection.c src/cursor.c src/cache.c src/microprotocols
 CROSS_TOOLS = "../pyext_cross_linux_to_win32"
 
 def execute(cmd):
-    print cmd
+    six.print_(cmd)
     return os.system(cmd)
 
 def get_amalgamation():
@@ -40,12 +41,12 @@ def get_amalgamation():
     if os.path.exists(AMALGAMATION_ROOT):
         return
     os.mkdir(AMALGAMATION_ROOT)
-    print "Downloading amalgation."
+    six.print_("Downloading amalgation.")
     urllib.urlretrieve("http://sqlite.org/sqlite-amalgamation-3_6_2.zip", "tmp.zip")
     zf = zipfile.ZipFile("tmp.zip")
     files = ["sqlite3.c", "sqlite3.h"]
     for fn in files:
-        print "Extracting", fn
+        six.print_("Extracting", fn)
         outf = open(AMALGAMATION_ROOT + os.sep + fn, "wb")
         outf.write(zf.read(fn))
         outf.close()

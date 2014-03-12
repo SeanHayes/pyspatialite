@@ -41,13 +41,13 @@ typedef int (*lenfunc)(PyObject*);
 
 /* define Py_CLEAR for pre-2.4 versions of Python */
 #ifndef Py_CLEAR
-#define Py_CLEAR(op)				\
-        do {                            	\
-                if (op) {			\
-                        PyObject *tmp = (PyObject *)(op);	\
-                        (op) = NULL;		\
-                        Py_DECREF(tmp);		\
-                }				\
+#define Py_CLEAR(op)                                         \
+        do {                                                 \
+                if (op) {                                    \
+                        PyObject *tmp = (PyObject *)(op);    \
+                        (op) = NULL;                         \
+                        Py_DECREF(tmp);                      \
+                }                                            \
         } while (0)
 #endif
 
@@ -57,7 +57,28 @@ typedef int (*lenfunc)(PyObject*);
 #endif
 
 #ifndef Py_TYPE
-#define Py_TYPE(ob) ((ob)->ob_type)
+#define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
+#endif
+
+#if PY_MAJOR_VERSION >=3
+#  define Py_TPFLAGS_HAVE_ITER 0
+#  define Py_TPFLAGS_HAVE_WEAKREFS 0
+
+#  define PyInt_Type       PyLong_Type
+#  define PyInt_FromLong   PyLong_FromLong
+#  define PyInt_AsLong     PyLong_AsLong
+#  define PyInt_Check      PyLong_Check
+#  define PyInt_CheckExact PyLong_CheckExact
+
+// If we actually need bytes and not unicode, use PyBytes_* instead of PyString_* where needed.
+#  define PyString_Type       PyUnicode_Type
+#  define PyString_AsString   PyUnicode_AsUTF8
+#  define PyString_FromString PyUnicode_FromString
+#  define PyString_FromStringAndSize PyUnicode_FromStringAndSize
+#  define PyString_Format     PyUnicode_Format
+#  define PyString_Check      PyUnicode_Check
+#  define PyString_CheckExact PyUnicode_CheckExact
+#  define PyString_Concat     PyUnicode_Append
 #endif
 
 #endif

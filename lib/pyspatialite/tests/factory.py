@@ -21,8 +21,13 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
+import six
 import unittest
+
 import pyspatialite.dbapi2 as sqlite
+
+if six.PY3:
+    unicode = str
 
 class MyConnection(sqlite.Connection):
     def __init__(self, *args, **kwargs):

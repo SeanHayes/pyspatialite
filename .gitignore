@@ -4,6 +4,7 @@
 *.pyc
 build/
 dist/
+tmp/
 var/
 a.out
 *.egg-info

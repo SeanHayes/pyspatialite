@@ -44,7 +44,7 @@ typedef enum {
     TYPE_INT,
     TYPE_LONG,
     TYPE_FLOAT,
-    TYPE_STRING,
+    TYPE_BYTES,
     TYPE_UNICODE,
     TYPE_BUFFER,
     TYPE_UNKNOWN
@@ -121,28 +121,33 @@ int pysqlite_statement_bind_parameter(pysqlite_Statement* self, int pos, PyObjec
         paramtype = TYPE_LONG;
     } else if (PyFloat_CheckExact(parameter)) {
         paramtype = TYPE_FLOAT;
-    } else if (PyString_CheckExact(parameter)) {
-        paramtype = TYPE_STRING;
+    } else if (PyBytes_CheckExact(parameter)) {
+        paramtype = TYPE_BYTES;
     } else if (PyUnicode_CheckExact(parameter)) {
         paramtype = TYPE_UNICODE;
+    #if PY_MAJOR_VERSION >= 3
+    } else if (PyObject_CheckBuffer(parameter)) {
+        paramtype = TYPE_BUFFER;
+    #else
     } else if (PyBuffer_Check(parameter)) {
         paramtype = TYPE_BUFFER;
+    #endif
     } else if (PyInt_Check(parameter)) {
         paramtype = TYPE_INT;
     } else if (PyLong_Check(parameter)) {
         paramtype = TYPE_LONG;
     } else if (PyFloat_Check(parameter)) {
         paramtype = TYPE_FLOAT;
-    } else if (PyString_Check(parameter)) {
-        paramtype = TYPE_STRING;
+    } else if (PyBytes_Check(parameter)) {
+        paramtype = TYPE_BYTES;
     } else if (PyUnicode_Check(parameter)) {
         paramtype = TYPE_UNICODE;
     } else {
         paramtype = TYPE_UNKNOWN;
     }
 
-    if (paramtype == TYPE_STRING && !allow_8bit_chars) {
-        string = PyString_AS_STRING(parameter);
+    if (paramtype == TYPE_BYTES && !allow_8bit_chars) {
+        string = PyBytes_AS_STRING(parameter);
         for (c = string; *c != 0; c++) {
             if (*c & 0x80) {
                 PyErr_SetString(pysqlite_ProgrammingError, "You must not use 8-bit bytestrings unless you use a text_factory that can interpret 8-bit bytestrings (like text_factory = str). It is highly recommended that you instead just switch your application to Unicode strings.");
@@ -165,8 +170,8 @@ int pysqlite_statement_bind_parameter(pysqlite_Statement* self, int pos, PyObjec
         case TYPE_FLOAT:
             rc = sqlite3_bind_double(self->st, pos, PyFloat_AsDouble(parameter));
             break;
-        case TYPE_STRING:
-            string = PyString_AS_STRING(parameter);
+        case TYPE_BYTES:
+            string = PyBytes_AS_STRING(parameter);
             rc = sqlite3_bind_text(self->st, pos, string, -1, SQLITE_TRANSIENT);
             break;
         case TYPE_UNICODE:
@@ -200,7 +205,12 @@ static int _need_adapt(PyObject* obj)
 
     if (PyInt_CheckExact(obj) || PyLong_CheckExact(obj) 
             || PyFloat_CheckExact(obj) || PyString_CheckExact(obj)
-            || PyUnicode_CheckExact(obj) || PyBuffer_Check(obj)) {
+            || PyUnicode_CheckExact(obj)
+            #if PY_MAJOR_VERSION >= 3
+            || PyObject_CheckBuffer(obj)) {
+            #else
+            || PyBuffer_Check(obj)) {
+            #endif
         return 0;
     } else {
         return 1;

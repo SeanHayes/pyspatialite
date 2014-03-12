@@ -1,6 +1,8 @@
 # Author: Paul Kippes <kippesp@gmail.com>
 
+from six.moves import range
 import unittest
+
 from pyspatialite import dbapi2 as sqlite
 
 class DumpTests(unittest.TestCase):
@@ -39,7 +41,7 @@ class DumpTests(unittest.TestCase):
         expected_sqls = ['BEGIN TRANSACTION;'] + expected_sqls + \
             ['COMMIT;']
         [self.assertEqual(expected_sqls[i], actual_sqls[i])
-            for i in xrange(len(expected_sqls))]
+            for i in range(len(expected_sqls))]
 
 def suite():
     return unittest.TestSuite(unittest.makeSuite(DumpTests, "Check"))

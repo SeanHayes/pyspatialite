@@ -164,6 +164,15 @@ class OverrideSystemIncludeOrderBuildCommand(build_ext):
     def build_extension(self,ext):
         # Load includes from module directories first!
         include_dirs = []
+        
+        # FIXME: this shouldn't be necessary
+        # proj and geos get downloaded here in Travis CI. Putting these paths in
+        # setup.cfg didn't work, and specifying them on the command line to
+        #`setup.py build_ext` didn't work because `setup.py test` rebuilds anyway.
+        include_dirs.append('tmp/proj-4.8.0/src/')
+        include_dirs.append('tmp/geos-3.4.2/capi/')
+        include_dirs.append('tmp/geos-3.4.2/include/')
+        
         include_dirs.extend(self.strip_includes(self.compiler.compiler))
         include_dirs.extend(self.strip_includes(self.compiler.compiler_so))
         include_dirs.extend(self.strip_includes(self.compiler.compiler_cxx))
@@ -208,7 +217,14 @@ def get_setup_args():
     PYSPATIALITE_VERSION = None
 
     version_re = re.compile('#define PYSPATIALITE_VERSION "(.*)"')
-    f = open(os.path.join("src", "module.h"))
+    
+    module_h_path = os.path.join("src", "module.h")
+    
+    if six.PY3:
+        f = open(module_h_path, encoding='iso-8859-1')
+    else:
+        f = open(module_h_path)
+    
     for line in f:
         match = version_re.match(line)
         if match:

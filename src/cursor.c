@@ -145,7 +145,7 @@ static void pysqlite_cursor_dealloc(pysqlite_Cursor* self)
         PyObject_ClearWeakRefs((PyObject*)self);
     }
 
-    self->ob_type->tp_free((PyObject*)self);
+    Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 PyObject* _pysqlite_get_converter(PyObject* key)
@@ -390,14 +390,34 @@ PyObject* _pysqlite_fetch_one_row(pysqlite_Cursor* self)
                                      colname , val_str);
                         PyErr_SetString(pysqlite_OperationalError, buf);
                     }
-                } else if (self->connection->text_factory == (PyObject*)&PyString_Type) {
-                    converted = PyString_FromString(val_str);
+                } else if (self->connection->text_factory == (PyObject*)&PyBytes_Type) {
+                    converted = PyBytes_FromString(val_str);
                 } else {
                     converted = PyObject_CallFunction(self->connection->text_factory, "s", val_str);
                 }
             } else {
                 /* coltype == SQLITE_BLOB */
                 nbytes = sqlite3_column_bytes(self->statement->st, i);
+                
+                #if PY_MAJOR_VERSION >= 3
+                
+/*                Py_buffer *view = (Py_buffer *) malloc(sizeof(*view));*/
+/*                int error = PyObject_GetBuffer(buffer, view, PyBUF_WRITABLE);*/
+/*                if (error || !buffer) {*/
+/*                    break;*/
+/*                }*/
+/*                */
+/*                raw_buffer = view->buf;*/
+/*                nbytes = view->len;*/
+                raw_buffer = (char*) malloc(nbytes);
+                
+                memcpy(raw_buffer, sqlite3_column_blob(self->statement->st, i), nbytes);
+                
+                buffer = PyBytes_FromString(raw_buffer);
+                buffer = PyMemoryView_FromObject(buffer);
+                
+                converted = buffer;
+                #else
                 buffer = PyBuffer_New(nbytes);
                 if (!buffer) {
                     break;
@@ -407,6 +427,7 @@ PyObject* _pysqlite_fetch_one_row(pysqlite_Cursor* self)
                 }
                 memcpy(raw_buffer, sqlite3_column_blob(self->statement->st, i), nbytes);
                 converted = buffer;
+                #endif
             }
         }
 
@@ -1065,11 +1086,11 @@ static PyMethodDef cursor_methods[] = {
 
 static struct PyMemberDef cursor_members[] =
 {
-    {"connection", T_OBJECT, offsetof(pysqlite_Cursor, connection), RO},
-    {"description", T_OBJECT, offsetof(pysqlite_Cursor, description), RO},
+    {"connection", T_OBJECT, offsetof(pysqlite_Cursor, connection), READONLY},
+    {"description", T_OBJECT, offsetof(pysqlite_Cursor, description), READONLY},
     {"arraysize", T_INT, offsetof(pysqlite_Cursor, arraysize), 0},
-    {"lastrowid", T_OBJECT, offsetof(pysqlite_Cursor, lastrowid), RO},
-    {"rowcount", T_LONG, offsetof(pysqlite_Cursor, rowcount), RO},
+    {"lastrowid", T_OBJECT, offsetof(pysqlite_Cursor, lastrowid), READONLY},
+    {"rowcount", T_LONG, offsetof(pysqlite_Cursor, rowcount), READONLY},
     {"row_factory", T_OBJECT, offsetof(pysqlite_Cursor, row_factory), 0},
     {NULL}
 };

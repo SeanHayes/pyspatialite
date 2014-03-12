@@ -5,6 +5,35 @@ python:
   - "2.7"
   - "3.3"
 
+before_install:
+    - echo ${TRAVIS_PYTHON_VERSION}
+    - uname -a
+    - cat /etc/*-release
+    
+    - sudo apt-get install python-sphinx python3-sphinx binutils libproj-dev libgeos-c1 libgeos-3.3.3 gdal-bin spatialite-bin libspatialite-dev libgeos-dev libgeos++-dev
+    
+    - mkdir tmp/
+    
+    - cd tmp/
+    - wget http://download.osgeo.org/proj/proj-4.8.0.tar.gz
+    - tar -xvf proj-4.8.0.tar.gz
+    - cd proj-4.8.0/
+    - ./configure
+#    - make
+#    - make check
+    - cd ../../
+    
+    - cd tmp/
+    - wget http://download.osgeo.org/geos/geos-3.4.2.tar.bz2
+    - tar -xvf geos-3.4.2.tar.bz2
+    - cd geos-3.4.2/
+    - ./configure
+#    - make
+#    - make check
+    - cd ../../
+
 # command to run tests
 script:
+#    - python setup.py build_ext --include-dirs tmp/proj-4.8.0/src/:tmp/geos-3.4.2/capi/:tmp/geos-3.4.2/includes/
     - python setup.py test
+    - sphinx-build -W -b html doc/sphinx doc/html
