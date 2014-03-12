@@ -24,9 +24,10 @@
 # 3. This notice may not be removed or altered from any source distribution.
 
 import glob, os, re, sys
+import six
+import string
 import urllib
 import zipfile
-import string
 
 from setuptools import setup, find_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
@@ -63,7 +64,7 @@ class DocBuilder(Command):
         os.makedirs("build/doc")
         rc = os.system("sphinx-build doc/sphinx build/doc")
         if rc != 0:
-            print "Is sphinx installed? If not, try 'sudo easy_install sphinx'."
+            six.print_("Is sphinx installed? If not, try 'sudo easy_install sphinx'.")
 
 AMALGAMATION_ROOT = "amalgamation/libspatialite-amalgamation-3.0.1"
 
@@ -217,7 +218,7 @@ def get_setup_args():
     f.close()
 
     if not PYSPATIALITE_VERSION:
-        print "Fatal error: PYSPATIALITE_VERSION could not be detected!"
+        six.print_("Fatal error: PYSPATIALITE_VERSION could not be detected!")
         sys.exit(1)
 
     data_files = [("pyspatialite-doc",
